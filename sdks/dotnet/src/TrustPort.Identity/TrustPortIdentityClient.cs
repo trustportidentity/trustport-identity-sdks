@@ -27,6 +27,8 @@ public sealed class TrustPortIdentityClient
         _o = options;
         _issuer = options.Issuer.TrimEnd('/');
         _http = http ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        if (_http.DefaultRequestHeaders.UserAgent.Count == 0) // some edge networks refuse requests with no User-Agent
+            _http.DefaultRequestHeaders.UserAgent.ParseAdd("trustport-identity-dotnet/0.1.0");
         // ConfigurationManager caches the signing keys and refreshes them when a token arrives with an unknown kid (key rotation).
         _keys = new ConfigurationManager<OpenIdConnectConfiguration>(
             _issuer + "/.well-known/openid-configuration",

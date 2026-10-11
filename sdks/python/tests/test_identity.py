@@ -186,3 +186,21 @@ def test_flask_decorator(provider):
     assert c.get("/admin", headers=viewer).status_code == 403
     ok = {"Authorization": "Bearer " + provider.sign({"roles": ["admin"]}, "api")}
     assert c.get("/admin", headers=ok).get_json() == {"sub": "u1"}
+
+
+def test_signing_keys_are_fetched_with_our_user_agent_and_refetched_on_rotation(provider):
+    seen = []
+    ident = make(provider)
+    orig = ident._http.get
+    ident._http.get = lambda url, **kw: (seen.append(ident._http.headers.get("user-agent")), orig(url, **kw))[1]
+    ident.verify_access_token(provider.sign({}, "api"))
+    assert any("trustport-identity-python" in (ua or "") for ua in seen)
+    # rotation: a new kid appears; within the refetch window it is refused, after it the keys are reloaded
+    provider.jwk["kid"] = "k2"
+    token = jwt.encode({"iss": provider.issuer, "aud": "api", "exp": int(time.time()) + 300},
+                       provider.key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()),
+                       algorithm="RS256", headers={"kid": "k2"})
+    with pytest.raises(TrustPortError, match="no signing key"):
+        ident.verify_access_token(token)
+    ident._keys_fetched_at = 0
+    assert ident.verify_access_token(token)["iss"] == provider.issuer

@@ -11,9 +11,13 @@ from urllib.parse import urlencode
 
 import httpx
 import jwt
-from jwt import PyJWKClient
+from jwt import PyJWK
 
 from .errors import TrustPortError
+
+
+USER_AGENT = "trustport-identity-python/0.1.0"
+_JWKS_REFETCH_MIN_SECONDS = 30  # an unknown kid triggers a refetch (key rotation), but not more often than this
 
 
 def _b64url(raw: bytes) -> str:
@@ -43,9 +47,10 @@ class TrustPortIdentity:
         self.scopes = list(scopes)
         self.audience = audience
         self.leeway = leeway
-        self._http = http or httpx.Client(timeout=10)
+        self._http = http or httpx.Client(timeout=10, headers={"User-Agent": USER_AGENT})
         self._discovery: Optional[dict] = None
-        self._jwks: Optional[PyJWKClient] = None
+        self._keys: dict = {}
+        self._keys_fetched_at = 0.0
 
     @classmethod
     def from_env(cls, env: Optional[Mapping[str, str]] = None, **overrides: Any) -> "TrustPortIdentity":
@@ -169,10 +174,8 @@ class TrustPortIdentity:
     # -- internals -----------------------------------------------------------------------------------------------
 
     def _decode(self, token: str, audience: Optional[str]) -> dict:
-        if self._jwks is None:
-            self._jwks = PyJWKClient(self.discover()["jwks_uri"], cache_keys=True)  # refetches on an unknown kid
         try:
-            key = self._jwks.get_signing_key_from_jwt(token).key
+            key = self._signing_key(token)
             return jwt.decode(
                 token,
                 key,
@@ -184,6 +187,18 @@ class TrustPortIdentity:
             )
         except jwt.PyJWTError as e:
             raise TrustPortError(str(e), "invalid_token") from e
+
+    def _signing_key(self, token: str):
+        kid = jwt.get_unverified_header(token).get("kid")
+        if kid not in self._keys and time.time() - self._keys_fetched_at >= _JWKS_REFETCH_MIN_SECONDS:
+            res = self._http.get(self.discover()["jwks_uri"])  # our own client: explicit User-Agent, injectable, same timeouts
+            if res.status_code >= 300:
+                raise TrustPortError(f"could not fetch signing keys ({res.status_code})", "jwks")
+            self._keys = {k["kid"]: PyJWK.from_dict(k).key for k in res.json().get("keys", []) if k.get("kty") == "RSA" and "kid" in k}
+            self._keys_fetched_at = time.time()
+        if kid not in self._keys:
+            raise TrustPortError(f"no signing key with kid {kid!r}", "invalid_token")
+        return self._keys[kid]
 
     def _client_post(self, url: str, form: dict) -> httpx.Response:
         auth = None

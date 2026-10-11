@@ -112,3 +112,25 @@ public class IdentityTests
         Assert.Equal("u1", await (await client.SendAsync(Req("/me", admin))).Content.ReadAsStringAsync());
     }
 }
+
+public class LiveSmokeTests
+{
+    // Opt-in: TRUSTPORT_LIVE_ISSUER=https://id.example.com dotnet test --filter LiveSmoke. Read-only: discovery and signing keys, no login.
+    [Fact]
+    public async Task LiveSmoke_DiscoversAndRejectsForgedTokens()
+    {
+        var issuer = Environment.GetEnvironmentVariable("TRUSTPORT_LIVE_ISSUER");
+        if (string.IsNullOrEmpty(issuer)) return;
+        var id = new TrustPortIdentityClient(new TrustPortOptions { Issuer = issuer, ClientId = "smoke", RedirectUri = "https://example.com/cb" });
+        var req = await id.CreateAuthorizationRequestAsync();
+        Assert.StartsWith(issuer.TrimEnd('/') + "/oauth/authorize", req.Url);
+        using var attacker = RSA.Create(2048);
+        var forged = new Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+        {
+            Issuer = issuer.TrimEnd('/'), Expires = DateTime.UtcNow.AddMinutes(5),
+            SigningCredentials = new SigningCredentials(new RsaSecurityKey(attacker) { KeyId = "nope" }, SecurityAlgorithms.RsaSha256),
+        });
+        var ex = await Assert.ThrowsAsync<TrustPortException>(() => id.VerifyAccessTokenAsync(forged));
+        Assert.Equal("invalid_token", ex.Code);
+    }
+}
