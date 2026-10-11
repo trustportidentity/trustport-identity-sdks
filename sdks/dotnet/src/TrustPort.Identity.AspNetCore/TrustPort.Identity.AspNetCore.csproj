@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>TrustPort.Identity.AspNetCore</PackageId>
+    <Description>ASP.NET Core integration for TrustPort Identity: JWT bearer API protection and OIDC web login.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.*" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="8.*" />
+    <ProjectReference Include="..\TrustPort.Identity\TrustPort.Identity.csproj" />
+  </ItemGroup>
+</Project>

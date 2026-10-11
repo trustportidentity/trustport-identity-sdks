@@ -1,0 +1,22 @@
+{
+  "name": "trustport/identity-laravel",
+  "description": "TrustPort Identity for PHP and Laravel: OIDC login (code + PKCE), token verification, middleware",
+  "license": "MIT",
+  "type": "library",
+  "require": {
+    "php": "^8.2",
+    "ext-openssl": "*",
+    "firebase/php-jwt": "^7.0",
+    "guzzlehttp/guzzle": "^7.8"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^11.0",
+    "illuminate/http": "^10.0|^11.0|^12.0",
+    "illuminate/support": "^10.0|^11.0|^12.0"
+  },
+  "autoload": { "psr-4": { "TrustPort\\Identity\\": "src/" } },
+  "autoload-dev": { "psr-4": { "TrustPort\\Identity\\Tests\\": "tests/" } },
+  "extra": { "laravel": { "providers": ["TrustPort\\Identity\\TrustPortServiceProvider"] } },
+  "config": { "sort-packages": true },
+  "minimum-stability": "stable"
+}
