@@ -1,0 +1,22 @@
+{
+  "name": "@trustport/identity-node",
+  "version": "0.1.0",
+  "description": "TrustPort Identity SDK for Node.js: OIDC login (code + PKCE), token verification, Express middleware",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./express": { "types": "./dist/express.d.ts", "default": "./dist/express.js" }
+  },
+  "files": ["dist"],
+  "engines": { "node": ">=18.17" },
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test test/*.test.js",
+    "prepare": "tsc"
+  },
+  "dependencies": { "jose": "^5.9.6" },
+  "devDependencies": { "@types/node": "^22.0.0", "typescript": "^5.6.0" }
+}
