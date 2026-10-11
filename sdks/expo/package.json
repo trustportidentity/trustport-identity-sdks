@@ -1,0 +1,14 @@
+{
+  "name": "@trustport/identity-expo",
+  "version": "0.1.0",
+  "description": "TrustPort Identity for Expo / React Native: system-browser sign-in with PKCE, tokens in SecureStore",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": { "build": "tsc", "test": "npm run build && node --test test/*.test.js", "prepare": "tsc" },
+  "dependencies": { "@trustport/identity-js": "^0.1.0" },
+  "peerDependencies": { "expo-crypto": "*", "expo-secure-store": "*", "expo-web-browser": "*" },
+  "devDependencies": { "@trustport/identity-js": "file:../js", "@types/node": "^22.0.0", "typescript": "^5.6.0" }
+}
