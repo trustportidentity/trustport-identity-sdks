@@ -1,0 +1,627 @@
+openapi: 3.0.3
+# Source of truth for the generated management clients (users, roles, groups, organizations, applications, API keys, invitations, domains).
+# Derived 2026-10-11 by reading the handlers and domain structs in trustport-deploy/services/user (NOT from openapi/user.yaml, which has drifted:
+# it documents mfa_enabled / status / roles on User, none of which the service returns). Status codes and bodies are what the handlers do.
+# Not covered yet: auth, MFA, sessions, webhooks (notification service), audit, policy, billing, SCIM, directory import.
+info:
+  title: TrustPort Identity Management API
+  version: 0.1.0
+  description: |
+    Manage users, roles, groups, organizations, applications (OAuth clients), API keys, invitations and custom domains of a TrustPort Identity tenant.
+
+    Authenticate with `Authorization: Bearer <token>` where the token is either a user access token or a **secret API key** (`sk_live_…` / `sk_test_…`).
+    Single objects are wrapped as `{ "data": ... }`; the users list also carries paging fields at the top level.
+servers:
+  - url: https://id.trustportidentity.com
+    description: Production gateway
+  - url: http://localhost:8080
+    description: Local gateway
+security:
+  - bearerAuth: []
+tags:
+  - { name: Users }
+  - { name: Roles }
+  - { name: Groups }
+  - { name: Organizations }
+  - { name: Applications }
+  - { name: ApiKeys }
+  - { name: Invitations }
+  - { name: Domains }
+
+paths:
+  /api/v1/users:
+    get:
+      tags: [Users]
+      operationId: listUsers
+      summary: List users
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, default: 20 } }
+        - { name: q, in: query, description: 'Searches username, email, first and last name.', schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+      responses:
+        '200': { description: A page of users., content: { application/json: { schema: { $ref: '#/components/schemas/UserList' } } } }
+        default: { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Users]
+      operationId: createUser
+      summary: Create a user
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateUserInput' } } } }
+      responses:
+        '201': { description: Created., content: { application/json: { schema: { $ref: '#/components/schemas/UserEnvelope' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/users/{userId}:
+    parameters: [ { $ref: '#/components/parameters/UserId' } ]
+    get:
+      tags: [Users]
+      operationId: getUser
+      summary: Get a user
+      responses:
+        '200': { description: The user., content: { application/json: { schema: { $ref: '#/components/schemas/UserEnvelope' } } } }
+        default: { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [Users]
+      operationId: updateUser
+      summary: Update a user (only the fields you send change)
+      description: Setting `is_active` to false also revokes the user's live sessions. Only an owner can deactivate an owner, and the last owner cannot be removed.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateUserInput' } } } }
+      responses:
+        '200': { description: Updated., content: { application/json: { schema: { $ref: '#/components/schemas/UserEnvelope' } } } }
+        default: { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [Users]
+      operationId: deleteUser
+      summary: Delete a user (soft delete; sessions are revoked)
+      responses:
+        '204': { description: Deleted. }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/users/{userId}/roles:
+    parameters: [ { $ref: '#/components/parameters/UserId' } ]
+    get:
+      tags: [Roles]
+      operationId: listUserRoles
+      summary: List the roles assigned to a user
+      responses:
+        '200': { description: Roles., content: { application/json: { schema: { $ref: '#/components/schemas/RoleList' } } } }
+        default: { $ref: '#/components/responses/Error' }
+
+  /api/v1/roles:
+    get:
+      tags: [Roles]
+      operationId: listRoles
+      summary: List roles
+      responses:
+        '200': { description: Roles., content: { application/json: { schema: { $ref: '#/components/schemas/RoleList' } } } }
+        default: { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Roles]
+      operationId: createRole
+      summary: Create a role
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateRoleInput' } } } }
+      responses:
+        '201': { description: Created., content: { application/json: { schema: { $ref: '#/components/schemas/RoleEnvelope' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/roles/{roleId}:
+    parameters: [ { name: roleId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    delete:
+      tags: [Roles]
+      operationId: deleteRole
+      summary: Delete a role
+      responses:
+        '204': { description: Deleted. }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/roles/assign:
+    post:
+      tags: [Roles]
+      operationId: assignRole
+      summary: Assign a role to a user (optionally until a date). Only an owner can grant ownership.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AssignRoleInput' } } } }
+      responses:
+        '204': { description: Assigned. }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/roles/revoke:
+    post:
+      tags: [Roles]
+      operationId: revokeRole
+      summary: Revoke a role from a user
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RevokeRoleInput' } } } }
+      responses:
+        '204': { description: Revoked. }
+        default: { $ref: '#/components/responses/Error' }
+
+  /api/v1/groups:
+    get:
+      tags: [Groups]
+      operationId: listGroups
+      summary: List groups
+      responses:
+        '200': { description: Groups., content: { application/json: { schema: { $ref: '#/components/schemas/GroupList' } } } }
+        default: { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Groups]
+      operationId: createGroup
+      summary: Create a group
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateGroupInput' } } } }
+      responses:
+        '201': { description: Created., content: { application/json: { schema: { $ref: '#/components/schemas/GroupEnvelope' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/groups/{groupId}:
+    parameters: [ { $ref: '#/components/parameters/GroupId' } ]
+    delete:
+      tags: [Groups]
+      operationId: deleteGroup
+      summary: Delete a group
+      responses:
+        '204': { description: Deleted. }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/groups/{groupId}/members:
+    parameters: [ { $ref: '#/components/parameters/GroupId' } ]
+    get:
+      tags: [Groups]
+      operationId: listGroupMembers
+      summary: List the members of a group
+      responses:
+        '200': { description: Members., content: { application/json: { schema: { $ref: '#/components/schemas/GroupMemberList' } } } }
+        default: { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Groups]
+      operationId: addGroupMember
+      summary: Add a user to a group
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AddGroupMemberInput' } } } }
+      responses:
+        '204': { description: Added. }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/groups/{groupId}/members/{userId}:
+    parameters: [ { $ref: '#/components/parameters/GroupId' }, { $ref: '#/components/parameters/UserId' } ]
+    delete:
+      tags: [Groups]
+      operationId: removeGroupMember
+      summary: Remove a user from a group
+      responses:
+        '204': { description: Removed. }
+        default: { $ref: '#/components/responses/Error' }
+
+  /api/v1/organizations:
+    get:
+      tags: [Organizations]
+      operationId: listOrganizations
+      summary: List organizations
+      responses:
+        '200': { description: Organizations., content: { application/json: { schema: { $ref: '#/components/schemas/OrganizationList' } } } }
+        default: { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Organizations]
+      operationId: createOrganization
+      summary: Create an organization (at most 20 domains, validated and lower-cased)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateOrganizationInput' } } } }
+      responses:
+        '201': { description: Created., content: { application/json: { schema: { $ref: '#/components/schemas/OrganizationEnvelope' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/organizations/{organizationId}:
+    parameters: [ { name: organizationId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    patch:
+      tags: [Organizations]
+      operationId: updateOrganization
+      summary: Update an organization (only the fields you send change)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateOrganizationInput' } } } }
+      responses:
+        '200': { description: Updated., content: { application/json: { schema: { $ref: '#/components/schemas/OrganizationEnvelope' } } } }
+        default: { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [Organizations]
+      operationId: deleteOrganization
+      summary: Delete an organization
+      responses:
+        '204': { description: Deleted. }
+        default: { $ref: '#/components/responses/Error' }
+
+  /api/v1/applications:
+    get:
+      tags: [Applications]
+      operationId: listApplications
+      summary: List applications (OAuth / OIDC clients)
+      responses:
+        '200': { description: Applications., content: { application/json: { schema: { $ref: '#/components/schemas/ApplicationList' } } } }
+        default: { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Applications]
+      operationId: createApplication
+      summary: Register an application. The client secret is returned once, in this response.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateApplicationInput' } } } }
+      responses:
+        '201': { description: Created., content: { application/json: { schema: { $ref: '#/components/schemas/ApplicationEnvelope' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/applications/{applicationId}:
+    parameters: [ { $ref: '#/components/parameters/ApplicationId' } ]
+    patch:
+      tags: [Applications]
+      operationId: updateApplication
+      summary: Update an application's name or redirect URIs
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateApplicationInput' } } } }
+      responses:
+        '200': { description: Updated., content: { application/json: { schema: { $ref: '#/components/schemas/ApplicationEnvelope' } } } }
+        default: { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [Applications]
+      operationId: deleteApplication
+      summary: Delete an application
+      responses:
+        '204': { description: Deleted. }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/applications/{applicationId}/rotate-secret:
+    parameters: [ { $ref: '#/components/parameters/ApplicationId' } ]
+    post:
+      tags: [Applications]
+      operationId: rotateApplicationSecret
+      summary: Issue a new client secret (returned once). The old secret stops working.
+      responses:
+        '200': { description: Rotated., content: { application/json: { schema: { $ref: '#/components/schemas/ApplicationEnvelope' } } } }
+        default: { $ref: '#/components/responses/Error' }
+
+  /api/v1/api-keys:
+    get:
+      tags: [ApiKeys]
+      operationId: listApiKeys
+      summary: List API keys (the secret is never shown again)
+      responses:
+        '200': { description: Keys., content: { application/json: { schema: { $ref: '#/components/schemas/ApiKeyList' } } } }
+        default: { $ref: '#/components/responses/Error' }
+    post:
+      tags: [ApiKeys]
+      operationId: createApiKey
+      summary: Create an API key. `secret_key` is returned once, in this response.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateApiKeyInput' } } } }
+      responses:
+        '201': { description: Created., content: { application/json: { schema: { $ref: '#/components/schemas/ApiKeyEnvelope' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/api-keys/{apiKeyId}:
+    parameters: [ { name: apiKeyId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    delete:
+      tags: [ApiKeys]
+      operationId: deleteApiKey
+      summary: Revoke an API key
+      responses:
+        '204': { description: Revoked. }
+        default: { $ref: '#/components/responses/Error' }
+
+  /api/v1/invitations:
+    get:
+      tags: [Invitations]
+      operationId: listInvitations
+      summary: List invitations
+      responses:
+        '200': { description: Invitations., content: { application/json: { schema: { $ref: '#/components/schemas/InvitationList' } } } }
+        default: { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Invitations]
+      operationId: createInvitation
+      summary: Invite someone by email (sends the invitation email). Fails with 403 if invitations are turned off for the workspace.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateInvitationInput' } } } }
+      responses:
+        '201': { description: Created., content: { application/json: { schema: { $ref: '#/components/schemas/InvitationEnvelope' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/invitations/{invitationId}/resend:
+    parameters: [ { $ref: '#/components/parameters/InvitationId' } ]
+    post:
+      tags: [Invitations]
+      operationId: resendInvitation
+      summary: Send the invitation email again
+      responses:
+        '200': { description: Resent., content: { application/json: { schema: { $ref: '#/components/schemas/InvitationEnvelope' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/invitations/{invitationId}:
+    parameters: [ { $ref: '#/components/parameters/InvitationId' } ]
+    delete:
+      tags: [Invitations]
+      operationId: revokeInvitation
+      summary: Revoke an invitation
+      responses:
+        '204': { description: Revoked. }
+        default: { $ref: '#/components/responses/Error' }
+
+  /api/v1/domains:
+    get:
+      tags: [Domains]
+      operationId: listCustomDomains
+      summary: List custom domains
+      responses:
+        '200': { description: Domains., content: { application/json: { schema: { $ref: '#/components/schemas/CustomDomainList' } } } }
+        default: { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Domains]
+      operationId: createCustomDomain
+      summary: Add a custom domain; returns the DNS records to publish
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateCustomDomainInput' } } } }
+      responses:
+        '201': { description: Created., content: { application/json: { schema: { $ref: '#/components/schemas/CustomDomainEnvelope' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/domains/{domainId}/verify:
+    parameters: [ { name: domainId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    post:
+      tags: [Domains]
+      operationId: verifyCustomDomain
+      summary: Check the DNS records for a custom domain
+      responses:
+        '200': { description: Result., content: { application/json: { schema: { $ref: '#/components/schemas/CustomDomainEnvelope' } } } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/domains/{domainId}:
+    parameters: [ { name: domainId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    delete:
+      tags: [Domains]
+      operationId: deleteCustomDomain
+      summary: Remove a custom domain
+      responses:
+        '204': { description: Removed. }
+        default: { $ref: '#/components/responses/Error' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: A user access token, or a secret API key (`sk_live_…` / `sk_test_…`).
+  parameters:
+    UserId: { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    GroupId: { name: groupId, in: path, required: true, schema: { type: string, format: uuid } }
+    ApplicationId: { name: applicationId, in: path, required: true, schema: { type: string, format: uuid } }
+    InvitationId: { name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }
+  responses:
+    Error:
+      description: Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN, CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and similar.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+  schemas:
+    ApiError:
+      type: object
+      required: [error]
+      properties:
+        error: { $ref: '#/components/schemas/ApiErrorDetail' }
+    ApiErrorDetail:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: {}
+
+    User:
+      type: object
+      required: [id, username, email, status, is_active, is_locked, email_verified, phone_verified, mfa_required, attributes, source, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        email: { type: string }
+        first_name: { type: string }
+        last_name: { type: string }
+        status: { type: string }
+        is_active: { type: boolean }
+        is_locked: { type: boolean }
+        locked_until: { type: string, format: date-time }
+        lock_reason: { type: string }
+        email_verified: { type: boolean }
+        phone: { type: string }
+        phone_verified: { type: boolean }
+        mfa_required: { type: boolean }
+        last_login_at: { type: string, format: date-time }
+        password_changed_at: { type: string, format: date-time }
+        attributes: { type: object, additionalProperties: true }
+        external_id: { type: string }
+        source: { type: string, description: 'How the account was created (for example local, ldap, scim, google).' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    UserEnvelope:
+      type: object
+      required: [data]
+      properties: { data: { $ref: '#/components/schemas/User' } }
+    UserList:
+      type: object
+      required: [data, page, per_page, total, total_pages]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/User' } }
+        page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
+        total_pages: { type: integer }
+    CreateUserInput:
+      type: object
+      required: [username, email, password]
+      properties:
+        username: { type: string }
+        email: { type: string }
+        password: { type: string, format: password, description: Hashed server-side; never stored or logged in clear. }
+        phone: { type: string }
+        first_name: { type: string }
+        last_name: { type: string }
+    UpdateUserInput:
+      type: object
+      properties:
+        username: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        first_name: { type: string }
+        last_name: { type: string }
+        is_active: { type: boolean }
+
+    Role:
+      type: object
+      required: [id, name, is_system, permissions, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        is_system: { type: boolean }
+        permissions: { type: array, items: { type: string } }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    RoleEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/Role' } } }
+    RoleList: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/Role' } } } }
+    CreateRoleInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        permissions: { type: array, items: { type: string } }
+    AssignRoleInput:
+      type: object
+      required: [user_id, role_name]
+      properties:
+        user_id: { type: string, format: uuid }
+        role_name: { type: string }
+        expires_at: { type: string, format: date-time }
+    RevokeRoleInput:
+      type: object
+      required: [user_id, role_name]
+      properties:
+        user_id: { type: string, format: uuid }
+        role_name: { type: string }
+
+    Group:
+      type: object
+      required: [id, name, source, member_count, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        source: { type: string }
+        external_id: { type: string }
+        member_count: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    GroupEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/Group' } } }
+    GroupList: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/Group' } } } }
+    CreateGroupInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        description: { type: string }
+    GroupMember:
+      type: object
+      required: [user_id, username, email, added_at]
+      properties:
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        email: { type: string }
+        added_at: { type: string, format: date-time }
+    GroupMemberList: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/GroupMember' } } } }
+    AddGroupMemberInput:
+      type: object
+      required: [user_id]
+      properties: { user_id: { type: string, format: uuid } }
+
+    Organization:
+      type: object
+      required: [id, name, domains, sso_active, directory_sync_active, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        domains: { type: array, items: { type: string } }
+        sso_provider: { type: string }
+        sso_active: { type: boolean }
+        directory_sync_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    OrganizationEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/Organization' } } }
+    OrganizationList: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/Organization' } } } }
+    CreateOrganizationInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        domains: { type: array, items: { type: string } }
+        sso_provider: { type: string }
+    UpdateOrganizationInput:
+      type: object
+      properties:
+        name: { type: string }
+        domains: { type: array, items: { type: string } }
+        sso_provider: { type: string, description: 'Empty string clears it.' }
+        sso_active: { type: boolean }
+        directory_sync_active: { type: boolean }
+
+    Application:
+      type: object
+      required: [id, name, client_id, is_default, redirect_uris, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        client_id: { type: string }
+        client_secret: { type: string, description: Present only in the create and rotate-secret responses. }
+        is_default: { type: boolean }
+        redirect_uris: { type: array, items: { type: string } }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ApplicationEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/Application' } } }
+    ApplicationList: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/Application' } } } }
+    CreateApplicationInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 255 }
+        redirect_uris: { type: array, items: { type: string } }
+
+    ApiKey:
+      type: object
+      required: [id, name, key_prefix, key_type, environment, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        key_prefix: { type: string }
+        secret_key: { type: string, description: Present only in the create response. Store it now. }
+        key_type: { type: string, enum: [secret, publishable] }
+        environment: { type: string, enum: [staging, production] }
+        last_used_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ApiKeyEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/ApiKey' } } }
+    ApiKeyList: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/ApiKey' } } } }
+    CreateApiKeyInput:
+      type: object
+      required: [name, key_type, environment]
+      properties:
+        name: { type: string }
+        key_type: { type: string, enum: [secret, publishable] }
+        environment: { type: string, enum: [staging, production] }
+
+    Invitation:
+      type: object
+      required: [id, email, role_name, invited_by, status, expires_at, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        role_name: { type: string }
+        invited_by: { type: string }
+        status: { type: string, enum: [pending, expired, accepted, revoked] }
+        expires_at: { type: string, format: date-time }
+        accepted_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+    InvitationEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/Invitation' } } }
+    InvitationList: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/Invitation' } } } }
+    CreateInvitationInput:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string }
+        role_name: { type: string, description: 'Must be an existing role. Only an owner can invite someone as owner.' }
+
+    CustomDomain:
+      type: object
+      required: [id, domain, verification_status, txt_record, cname_record, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        domain: { type: string }
+        organization_id: { type: string, format: uuid }
+        verification_status: { type: string, enum: [pending, verified, failed] }
+        txt_host: { type: string }
+        txt_record: { type: string }
+        cname_record: { type: string }
+        verified_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+    CustomDomainEnvelope: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/CustomDomain' } } }
+    CustomDomainList: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/CustomDomain' } } } }
+    CreateCustomDomainInput:
+      type: object
+      required: [domain]
+      properties:
+        domain: { type: string }
+        organization_id: { type: string, format: uuid }
