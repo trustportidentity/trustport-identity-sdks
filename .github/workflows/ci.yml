@@ -56,11 +56,8 @@ jobs:
         run: |
           cd sdks/python
           pip install --upgrade pip
-          pip install -e .
-          if [ -d "tests" ] || [ -d "test" ]; then
-            pip install pytest
-            pytest
-          fi
+          pip install -e '.[test]'
+          pytest
 
   # ─── Gate 3: .NET SDK ────────────────────────────────────────────────────────
   test-dotnet-sdk:
