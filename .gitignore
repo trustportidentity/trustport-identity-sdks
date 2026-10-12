@@ -3,3 +3,14 @@ dist/
 .env
 .env.*
 *.tsbuildinfo
+.DS_Store
+**/.DS_Store
+.venv/
+**/__pycache__/
+*.pyc
+vendor/
+bin/
+obj/
+*.user
+.build/
+.swiftpm/

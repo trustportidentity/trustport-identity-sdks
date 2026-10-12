@@ -1,0 +1,12 @@
+# flake8: noqa
+
+# import apis into api package
+from trustport_identity_management.api.api_keys_api import ApiKeysApi
+from trustport_identity_management.api.applications_api import ApplicationsApi
+from trustport_identity_management.api.domains_api import DomainsApi
+from trustport_identity_management.api.groups_api import GroupsApi
+from trustport_identity_management.api.invitations_api import InvitationsApi
+from trustport_identity_management.api.organizations_api import OrganizationsApi
+from trustport_identity_management.api.roles_api import RolesApi
+from trustport_identity_management.api.users_api import UsersApi
+

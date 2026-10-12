@@ -1,0 +1,27 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+VisualStudioVersion = 12.0.0.0
+MinimumVisualStudioVersion = 10.0.0.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrustPort.Identity.Management", "src\TrustPort.Identity.Management\TrustPort.Identity.Management.csproj", "{39B6DF99-134A-4414-886A-797E09ADAF7F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrustPort.Identity.Management.Test", "src\TrustPort.Identity.Management.Test\TrustPort.Identity.Management.Test.csproj", "{19F1DEBC-DE5E-4517-8062-F000CD499087}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{39B6DF99-134A-4414-886A-797E09ADAF7F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{39B6DF99-134A-4414-886A-797E09ADAF7F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{39B6DF99-134A-4414-886A-797E09ADAF7F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{39B6DF99-134A-4414-886A-797E09ADAF7F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{19F1DEBC-DE5E-4517-8062-F000CD499087}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{19F1DEBC-DE5E-4517-8062-F000CD499087}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{19F1DEBC-DE5E-4517-8062-F000CD499087}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{19F1DEBC-DE5E-4517-8062-F000CD499087}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

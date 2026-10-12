@@ -1,0 +1,39 @@
+{
+    "version": "0.1.0",
+    "description": "Manage users, roles, groups, organizations, applications (OAuth clients), API keys, invitations and custom domains of a TrustPort Identity tenant.  Authenticate with `Authorization: Bearer <token>` where the token is either a user access token or a **secret API key** (`sk_live_…` / `sk_test_…`). Single objects are wrapped as `{ \"data\": ... }`; the users list also carries paging fields at the top level.",
+    "keywords": [
+        "openapitools",
+        "openapi-generator",
+        "openapi",
+        "php",
+        "sdk",
+        "rest",
+        "api"
+    ],
+    "homepage": "https://openapi-generator.tech",
+    "license": "unlicense",
+    "authors": [
+        {
+            "name": "OpenAPI",
+            "homepage": "https://openapi-generator.tech"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "guzzlehttp/guzzle": "^7.3",
+        "guzzlehttp/psr7": "^1.7 || ^2.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^8.0 || ^9.0",
+        "friendsofphp/php-cs-fixer": "^3.5"
+    },
+    "autoload": {
+        "psr-4": { "TrustPortIdentityManagement\\" : "lib/" }
+    },
+    "autoload-dev": {
+        "psr-4": { "TrustPortIdentityManagement\\Test\\" : "test/" }
+    }
+}

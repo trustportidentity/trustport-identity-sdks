@@ -1,0 +1,2228 @@
+openapi: 3.0.3
+info:
+  description: |
+    Manage users, roles, groups, organizations, applications (OAuth clients), API keys, invitations and custom domains of a TrustPort Identity tenant.
+
+    Authenticate with `Authorization: Bearer <token>` where the token is either a user access token or a **secret API key** (`sk_live_…` / `sk_test_…`).
+    Single objects are wrapped as `{ "data": ... }`; the users list also carries paging fields at the top level.
+  title: TrustPort Identity Management API
+  version: 0.1.0
+servers:
+- description: Production gateway
+  url: https://id.trustportidentity.com
+- description: Local gateway
+  url: http://localhost:8080
+security:
+- bearerAuth: []
+tags:
+- name: Users
+- name: Roles
+- name: Groups
+- name: Organizations
+- name: Applications
+- name: ApiKeys
+- name: Invitations
+- name: Domains
+paths:
+  /api/v1/users:
+    get:
+      operationId: listUsers
+      parameters:
+      - explode: true
+        in: query
+        name: page
+        required: false
+        schema:
+          default: 1
+          minimum: 1
+          type: integer
+        style: form
+      - explode: true
+        in: query
+        name: per_page
+        required: false
+        schema:
+          default: 20
+          minimum: 1
+          type: integer
+        style: form
+      - description: "Searches username, email, first and last name."
+        explode: true
+        in: query
+        name: q
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: status
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserList"
+          description: A page of users.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: List users
+      tags:
+      - Users
+    post:
+      operationId: createUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserInput"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserEnvelope"
+          description: Created.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Create a user
+      tags:
+      - Users
+  /api/v1/users/{userId}:
+    delete:
+      operationId: deleteUser
+      parameters:
+      - explode: false
+        in: path
+        name: userId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: Deleted.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Delete a user (soft delete; sessions are revoked)
+      tags:
+      - Users
+    get:
+      operationId: getUser
+      parameters:
+      - explode: false
+        in: path
+        name: userId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserEnvelope"
+          description: The user.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Get a user
+      tags:
+      - Users
+    patch:
+      description: "Setting `is_active` to false also revokes the user's live sessions.\
+        \ Only an owner can deactivate an owner, and the last owner cannot be removed."
+      operationId: updateUser
+      parameters:
+      - explode: false
+        in: path
+        name: userId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserEnvelope"
+          description: Updated.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Update a user (only the fields you send change)
+      tags:
+      - Users
+  /api/v1/users/{userId}/roles:
+    get:
+      operationId: listUserRoles
+      parameters:
+      - explode: false
+        in: path
+        name: userId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleList"
+          description: Roles.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: List the roles assigned to a user
+      tags:
+      - Roles
+  /api/v1/roles:
+    get:
+      operationId: listRoles
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleList"
+          description: Roles.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: List roles
+      tags:
+      - Roles
+    post:
+      operationId: createRole
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoleInput"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleEnvelope"
+          description: Created.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Create a role
+      tags:
+      - Roles
+  /api/v1/roles/{roleId}:
+    delete:
+      operationId: deleteRole
+      parameters:
+      - explode: false
+        in: path
+        name: roleId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: Deleted.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Delete a role
+      tags:
+      - Roles
+  /api/v1/roles/assign:
+    post:
+      operationId: assignRole
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignRoleInput"
+        required: true
+      responses:
+        "204":
+          description: Assigned.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Assign a role to a user (optionally until a date). Only an owner can
+        grant ownership.
+      tags:
+      - Roles
+  /api/v1/roles/revoke:
+    post:
+      operationId: revokeRole
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevokeRoleInput"
+        required: true
+      responses:
+        "204":
+          description: Revoked.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Revoke a role from a user
+      tags:
+      - Roles
+  /api/v1/groups:
+    get:
+      operationId: listGroups
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupList"
+          description: Groups.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: List groups
+      tags:
+      - Groups
+    post:
+      operationId: createGroup
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGroupInput"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupEnvelope"
+          description: Created.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Create a group
+      tags:
+      - Groups
+  /api/v1/groups/{groupId}:
+    delete:
+      operationId: deleteGroup
+      parameters:
+      - explode: false
+        in: path
+        name: groupId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: Deleted.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Delete a group
+      tags:
+      - Groups
+  /api/v1/groups/{groupId}/members:
+    get:
+      operationId: listGroupMembers
+      parameters:
+      - explode: false
+        in: path
+        name: groupId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupMemberList"
+          description: Members.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: List the members of a group
+      tags:
+      - Groups
+    post:
+      operationId: addGroupMember
+      parameters:
+      - explode: false
+        in: path
+        name: groupId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddGroupMemberInput"
+        required: true
+      responses:
+        "204":
+          description: Added.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Add a user to a group
+      tags:
+      - Groups
+  /api/v1/groups/{groupId}/members/{userId}:
+    delete:
+      operationId: removeGroupMember
+      parameters:
+      - explode: false
+        in: path
+        name: groupId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: userId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: Removed.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Remove a user from a group
+      tags:
+      - Groups
+  /api/v1/organizations:
+    get:
+      operationId: listOrganizations
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationList"
+          description: Organizations.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: List organizations
+      tags:
+      - Organizations
+    post:
+      operationId: createOrganization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrganizationInput"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationEnvelope"
+          description: Created.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: "Create an organization (at most 20 domains, validated and lower-cased)"
+      tags:
+      - Organizations
+  /api/v1/organizations/{organizationId}:
+    delete:
+      operationId: deleteOrganization
+      parameters:
+      - explode: false
+        in: path
+        name: organizationId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: Deleted.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Delete an organization
+      tags:
+      - Organizations
+    patch:
+      operationId: updateOrganization
+      parameters:
+      - explode: false
+        in: path
+        name: organizationId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrganizationInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationEnvelope"
+          description: Updated.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Update an organization (only the fields you send change)
+      tags:
+      - Organizations
+  /api/v1/applications:
+    get:
+      operationId: listApplications
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationList"
+          description: Applications.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: List applications (OAuth / OIDC clients)
+      tags:
+      - Applications
+    post:
+      operationId: createApplication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateApplicationInput"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationEnvelope"
+          description: Created.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: "Register an application. The client secret is returned once, in this\
+        \ response."
+      tags:
+      - Applications
+  /api/v1/applications/{applicationId}:
+    delete:
+      operationId: deleteApplication
+      parameters:
+      - explode: false
+        in: path
+        name: applicationId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: Deleted.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Delete an application
+      tags:
+      - Applications
+    patch:
+      operationId: updateApplication
+      parameters:
+      - explode: false
+        in: path
+        name: applicationId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateApplicationInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationEnvelope"
+          description: Updated.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Update an application's name or redirect URIs
+      tags:
+      - Applications
+  /api/v1/applications/{applicationId}/rotate-secret:
+    post:
+      operationId: rotateApplicationSecret
+      parameters:
+      - explode: false
+        in: path
+        name: applicationId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationEnvelope"
+          description: Rotated.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Issue a new client secret (returned once). The old secret stops working.
+      tags:
+      - Applications
+  /api/v1/api-keys:
+    get:
+      operationId: listApiKeys
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiKeyList"
+          description: Keys.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: List API keys (the secret is never shown again)
+      tags:
+      - ApiKeys
+    post:
+      operationId: createApiKey
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateApiKeyInput"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiKeyEnvelope"
+          description: Created.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: "Create an API key. `secret_key` is returned once, in this response."
+      tags:
+      - ApiKeys
+  /api/v1/api-keys/{apiKeyId}:
+    delete:
+      operationId: deleteApiKey
+      parameters:
+      - explode: false
+        in: path
+        name: apiKeyId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: Revoked.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Revoke an API key
+      tags:
+      - ApiKeys
+  /api/v1/invitations:
+    get:
+      operationId: listInvitations
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationList"
+          description: Invitations.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: List invitations
+      tags:
+      - Invitations
+    post:
+      operationId: createInvitation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvitationInput"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationEnvelope"
+          description: Created.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Invite someone by email (sends the invitation email). Fails with 403
+        if invitations are turned off for the workspace.
+      tags:
+      - Invitations
+  /api/v1/invitations/{invitationId}/resend:
+    post:
+      operationId: resendInvitation
+      parameters:
+      - explode: false
+        in: path
+        name: invitationId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationEnvelope"
+          description: Resent.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Send the invitation email again
+      tags:
+      - Invitations
+  /api/v1/invitations/{invitationId}:
+    delete:
+      operationId: revokeInvitation
+      parameters:
+      - explode: false
+        in: path
+        name: invitationId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: Revoked.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Revoke an invitation
+      tags:
+      - Invitations
+  /api/v1/domains:
+    get:
+      operationId: listCustomDomains
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomDomainList"
+          description: Domains.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: List custom domains
+      tags:
+      - Domains
+    post:
+      operationId: createCustomDomain
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCustomDomainInput"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomDomainEnvelope"
+          description: Created.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Add a custom domain; returns the DNS records to publish
+      tags:
+      - Domains
+  /api/v1/domains/{domainId}/verify:
+    post:
+      operationId: verifyCustomDomain
+      parameters:
+      - explode: false
+        in: path
+        name: domainId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomDomainEnvelope"
+          description: Result.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Check the DNS records for a custom domain
+      tags:
+      - Domains
+  /api/v1/domains/{domainId}:
+    delete:
+      operationId: deleteCustomDomain
+      parameters:
+      - explode: false
+        in: path
+        name: domainId
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: Removed.
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+          description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+            \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and\
+            \ similar."
+      summary: Remove a custom domain
+      tags:
+      - Domains
+components:
+  parameters:
+    UserId:
+      explode: false
+      in: path
+      name: userId
+      required: true
+      schema:
+        format: uuid
+        type: string
+      style: simple
+    GroupId:
+      explode: false
+      in: path
+      name: groupId
+      required: true
+      schema:
+        format: uuid
+        type: string
+      style: simple
+    ApplicationId:
+      explode: false
+      in: path
+      name: applicationId
+      required: true
+      schema:
+        format: uuid
+        type: string
+      style: simple
+    InvitationId:
+      explode: false
+      in: path
+      name: invitationId
+      required: true
+      schema:
+        format: uuid
+        type: string
+      style: simple
+  responses:
+    Error:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+      description: "Error. `error.code` is one of NOT_FOUND, UNAUTHORIZED, FORBIDDEN,\
+        \ CONFLICT, BAD_REQUEST, VALIDATION_ERROR, RATE_LIMITED, INTERNAL and similar."
+  schemas:
+    ApiError:
+      example:
+        error:
+          code: code
+          message: message
+          details: ""
+      properties:
+        error:
+          $ref: "#/components/schemas/ApiErrorDetail"
+      required:
+      - error
+      type: object
+    ApiErrorDetail:
+      example:
+        code: code
+        message: message
+        details: ""
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details: {}
+      required:
+      - code
+      - message
+      type: object
+    User:
+      example:
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        username: username
+        email: email
+        first_name: first_name
+        last_name: last_name
+        status: status
+        is_active: true
+        is_locked: true
+        locked_until: 2000-01-23T04:56:07.000+00:00
+        lock_reason: lock_reason
+        email_verified: true
+        phone: phone
+        phone_verified: true
+        mfa_required: true
+        last_login_at: 2000-01-23T04:56:07.000+00:00
+        password_changed_at: 2000-01-23T04:56:07.000+00:00
+        attributes:
+          key: ""
+        external_id: external_id
+        source: source
+        created_at: 2000-01-23T04:56:07.000+00:00
+        updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        id:
+          format: uuid
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        status:
+          type: string
+        is_active:
+          type: boolean
+        is_locked:
+          type: boolean
+        locked_until:
+          format: date-time
+          type: string
+        lock_reason:
+          type: string
+        email_verified:
+          type: boolean
+        phone:
+          type: string
+        phone_verified:
+          type: boolean
+        mfa_required:
+          type: boolean
+        last_login_at:
+          format: date-time
+          type: string
+        password_changed_at:
+          format: date-time
+          type: string
+        attributes:
+          additionalProperties: true
+          type: object
+        external_id:
+          type: string
+        source:
+          description: "How the account was created (for example local, ldap, scim,\
+            \ google)."
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+      - attributes
+      - created_at
+      - email
+      - email_verified
+      - id
+      - is_active
+      - is_locked
+      - mfa_required
+      - phone_verified
+      - source
+      - status
+      - updated_at
+      - username
+      type: object
+    UserEnvelope:
+      example:
+        data:
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          username: username
+          email: email
+          first_name: first_name
+          last_name: last_name
+          status: status
+          is_active: true
+          is_locked: true
+          locked_until: 2000-01-23T04:56:07.000+00:00
+          lock_reason: lock_reason
+          email_verified: true
+          phone: phone
+          phone_verified: true
+          mfa_required: true
+          last_login_at: 2000-01-23T04:56:07.000+00:00
+          password_changed_at: 2000-01-23T04:56:07.000+00:00
+          attributes:
+            key: ""
+          external_id: external_id
+          source: source
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        data:
+          $ref: "#/components/schemas/User"
+      required:
+      - data
+      type: object
+    UserList:
+      example:
+        data:
+        - id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          username: username
+          email: email
+          first_name: first_name
+          last_name: last_name
+          status: status
+          is_active: true
+          is_locked: true
+          locked_until: 2000-01-23T04:56:07.000+00:00
+          lock_reason: lock_reason
+          email_verified: true
+          phone: phone
+          phone_verified: true
+          mfa_required: true
+          last_login_at: 2000-01-23T04:56:07.000+00:00
+          password_changed_at: 2000-01-23T04:56:07.000+00:00
+          attributes:
+            key: ""
+          external_id: external_id
+          source: source
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+        - id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          username: username
+          email: email
+          first_name: first_name
+          last_name: last_name
+          status: status
+          is_active: true
+          is_locked: true
+          locked_until: 2000-01-23T04:56:07.000+00:00
+          lock_reason: lock_reason
+          email_verified: true
+          phone: phone
+          phone_verified: true
+          mfa_required: true
+          last_login_at: 2000-01-23T04:56:07.000+00:00
+          password_changed_at: 2000-01-23T04:56:07.000+00:00
+          attributes:
+            key: ""
+          external_id: external_id
+          source: source
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+        page: 0
+        per_page: 6
+        total: 1
+        total_pages: 5
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/User"
+          type: array
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        total_pages:
+          type: integer
+      required:
+      - data
+      - page
+      - per_page
+      - total
+      - total_pages
+      type: object
+    CreateUserInput:
+      example:
+        username: username
+        email: email
+        password: password
+        phone: phone
+        first_name: first_name
+        last_name: last_name
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        password:
+          description: Hashed server-side; never stored or logged in clear.
+          format: password
+          type: string
+        phone:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+      required:
+      - email
+      - password
+      - username
+      type: object
+    UpdateUserInput:
+      example:
+        username: username
+        email: email
+        phone: phone
+        first_name: first_name
+        last_name: last_name
+        is_active: true
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        is_active:
+          type: boolean
+      type: object
+    Role:
+      example:
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        name: name
+        description: description
+        is_system: true
+        permissions:
+        - permissions
+        - permissions
+        created_at: 2000-01-23T04:56:07.000+00:00
+        updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        id:
+          format: uuid
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        is_system:
+          type: boolean
+        permissions:
+          items:
+            type: string
+          type: array
+        created_at:
+          format: date-time
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+      - created_at
+      - id
+      - is_system
+      - name
+      - permissions
+      - updated_at
+      type: object
+    RoleEnvelope:
+      example:
+        data:
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          name: name
+          description: description
+          is_system: true
+          permissions:
+          - permissions
+          - permissions
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        data:
+          $ref: "#/components/schemas/Role"
+      required:
+      - data
+      type: object
+    RoleList:
+      example:
+        data:
+        - id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          name: name
+          description: description
+          is_system: true
+          permissions:
+          - permissions
+          - permissions
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+        - id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          name: name
+          description: description
+          is_system: true
+          permissions:
+          - permissions
+          - permissions
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/Role"
+          type: array
+      required:
+      - data
+      type: object
+    CreateRoleInput:
+      example:
+        name: name
+        description: description
+        permissions:
+        - permissions
+        - permissions
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        permissions:
+          items:
+            type: string
+          type: array
+      required:
+      - name
+      type: object
+    AssignRoleInput:
+      example:
+        user_id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        role_name: role_name
+        expires_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        user_id:
+          format: uuid
+          type: string
+        role_name:
+          type: string
+        expires_at:
+          format: date-time
+          type: string
+      required:
+      - role_name
+      - user_id
+      type: object
+    RevokeRoleInput:
+      example:
+        user_id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        role_name: role_name
+      properties:
+        user_id:
+          format: uuid
+          type: string
+        role_name:
+          type: string
+      required:
+      - role_name
+      - user_id
+      type: object
+    Group:
+      example:
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        name: name
+        description: description
+        source: source
+        external_id: external_id
+        member_count: 0
+        created_at: 2000-01-23T04:56:07.000+00:00
+        updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        id:
+          format: uuid
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        source:
+          type: string
+        external_id:
+          type: string
+        member_count:
+          type: integer
+        created_at:
+          format: date-time
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+      - created_at
+      - id
+      - member_count
+      - name
+      - source
+      - updated_at
+      type: object
+    GroupEnvelope:
+      example:
+        data:
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          name: name
+          description: description
+          source: source
+          external_id: external_id
+          member_count: 0
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        data:
+          $ref: "#/components/schemas/Group"
+      required:
+      - data
+      type: object
+    GroupList:
+      example:
+        data:
+        - id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          name: name
+          description: description
+          source: source
+          external_id: external_id
+          member_count: 0
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+        - id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          name: name
+          description: description
+          source: source
+          external_id: external_id
+          member_count: 0
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/Group"
+          type: array
+      required:
+      - data
+      type: object
+    CreateGroupInput:
+      example:
+        name: name
+        description: description
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+      required:
+      - name
+      type: object
+    GroupMember:
+      example:
+        user_id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        username: username
+        email: email
+        added_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        user_id:
+          format: uuid
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        added_at:
+          format: date-time
+          type: string
+      required:
+      - added_at
+      - email
+      - user_id
+      - username
+      type: object
+    GroupMemberList:
+      example:
+        data:
+        - user_id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          username: username
+          email: email
+          added_at: 2000-01-23T04:56:07.000+00:00
+        - user_id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          username: username
+          email: email
+          added_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/GroupMember"
+          type: array
+      required:
+      - data
+      type: object
+    AddGroupMemberInput:
+      example:
+        user_id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+      properties:
+        user_id:
+          format: uuid
+          type: string
+      required:
+      - user_id
+      type: object
+    Organization:
+      example:
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        name: name
+        domains:
+        - domains
+        - domains
+        sso_provider: sso_provider
+        sso_active: true
+        directory_sync_active: true
+        created_at: 2000-01-23T04:56:07.000+00:00
+        updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        id:
+          format: uuid
+          type: string
+        name:
+          type: string
+        domains:
+          items:
+            type: string
+          type: array
+        sso_provider:
+          type: string
+        sso_active:
+          type: boolean
+        directory_sync_active:
+          type: boolean
+        created_at:
+          format: date-time
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+      - created_at
+      - directory_sync_active
+      - domains
+      - id
+      - name
+      - sso_active
+      - updated_at
+      type: object
+    OrganizationEnvelope:
+      example:
+        data:
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          name: name
+          domains:
+          - domains
+          - domains
+          sso_provider: sso_provider
+          sso_active: true
+          directory_sync_active: true
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        data:
+          $ref: "#/components/schemas/Organization"
+      required:
+      - data
+      type: object
+    OrganizationList:
+      example:
+        data:
+        - id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          name: name
+          domains:
+          - domains
+          - domains
+          sso_provider: sso_provider
+          sso_active: true
+          directory_sync_active: true
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+        - id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          name: name
+          domains:
+          - domains
+          - domains
+          sso_provider: sso_provider
+          sso_active: true
+          directory_sync_active: true
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/Organization"
+          type: array
+      required:
+      - data
+      type: object
+    CreateOrganizationInput:
+      example:
+        name: name
+        domains:
+        - domains
+        - domains
+        sso_provider: sso_provider
+      properties:
+        name:
+          type: string
+        domains:
+          items:
+            type: string
+          type: array
+        sso_provider:
+          type: string
+      required:
+      - name
+      type: object
+    UpdateOrganizationInput:
+      example:
+        name: name
+        domains:
+        - domains
+        - domains
+        sso_provider: sso_provider
+        sso_active: true
+        directory_sync_active: true
+      properties:
+        name:
+          type: string
+        domains:
+          items:
+            type: string
+          type: array
+        sso_provider:
+          description: Empty string clears it.
+          type: string
+        sso_active:
+          type: boolean
+        directory_sync_active:
+          type: boolean
+      type: object
+    Application:
+      example:
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        name: name
+        client_id: client_id
+        client_secret: client_secret
+        is_default: true
+        redirect_uris:
+        - redirect_uris
+        - redirect_uris
+        created_at: 2000-01-23T04:56:07.000+00:00
+        updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        id:
+          format: uuid
+          type: string
+        name:
+          type: string
+        client_id:
+          type: string
+        client_secret:
+          description: Present only in the create and rotate-secret responses.
+          type: string
+        is_default:
+          type: boolean
+        redirect_uris:
+          items:
+            type: string
+          type: array
+        created_at:
+          format: date-time
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+      - client_id
+      - created_at
+      - id
+      - is_default
+      - name
+      - redirect_uris
+      - updated_at
+      type: object
+    ApplicationEnvelope:
+      example:
+        data:
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          name: name
+          client_id: client_id
+          client_secret: client_secret
+          is_default: true
+          redirect_uris:
+          - redirect_uris
+          - redirect_uris
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        data:
+          $ref: "#/components/schemas/Application"
+      required:
+      - data
+      type: object
+    ApplicationList:
+      example:
+        data:
+        - id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          name: name
+          client_id: client_id
+          client_secret: client_secret
+          is_default: true
+          redirect_uris:
+          - redirect_uris
+          - redirect_uris
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+        - id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          name: name
+          client_id: client_id
+          client_secret: client_secret
+          is_default: true
+          redirect_uris:
+          - redirect_uris
+          - redirect_uris
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/Application"
+          type: array
+      required:
+      - data
+      type: object
+    CreateApplicationInput:
+      example:
+        name: name
+        redirect_uris:
+        - redirect_uris
+        - redirect_uris
+      properties:
+        name:
+          maxLength: 255
+          type: string
+        redirect_uris:
+          items:
+            type: string
+          type: array
+      required:
+      - name
+      type: object
+    ApiKey:
+      example:
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        name: name
+        key_prefix: key_prefix
+        secret_key: secret_key
+        key_type: secret
+        environment: staging
+        last_used_at: 2000-01-23T04:56:07.000+00:00
+        created_at: 2000-01-23T04:56:07.000+00:00
+        updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        id:
+          format: uuid
+          type: string
+        name:
+          type: string
+        key_prefix:
+          type: string
+        secret_key:
+          description: Present only in the create response. Store it now.
+          type: string
+        key_type:
+          enum:
+          - secret
+          - publishable
+          type: string
+        environment:
+          enum:
+          - staging
+          - production
+          type: string
+        last_used_at:
+          format: date-time
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+      - created_at
+      - environment
+      - id
+      - key_prefix
+      - key_type
+      - name
+      - updated_at
+      type: object
+    ApiKeyEnvelope:
+      example:
+        data:
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          name: name
+          key_prefix: key_prefix
+          secret_key: secret_key
+          key_type: secret
+          environment: staging
+          last_used_at: 2000-01-23T04:56:07.000+00:00
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        data:
+          $ref: "#/components/schemas/ApiKey"
+      required:
+      - data
+      type: object
+    ApiKeyList:
+      example:
+        data:
+        - id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          name: name
+          key_prefix: key_prefix
+          secret_key: secret_key
+          key_type: secret
+          environment: staging
+          last_used_at: 2000-01-23T04:56:07.000+00:00
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+        - id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          name: name
+          key_prefix: key_prefix
+          secret_key: secret_key
+          key_type: secret
+          environment: staging
+          last_used_at: 2000-01-23T04:56:07.000+00:00
+          created_at: 2000-01-23T04:56:07.000+00:00
+          updated_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/ApiKey"
+          type: array
+      required:
+      - data
+      type: object
+    CreateApiKeyInput:
+      example:
+        name: name
+        key_type: secret
+        environment: staging
+      properties:
+        name:
+          type: string
+        key_type:
+          enum:
+          - secret
+          - publishable
+          type: string
+        environment:
+          enum:
+          - staging
+          - production
+          type: string
+      required:
+      - environment
+      - key_type
+      - name
+      type: object
+    Invitation:
+      example:
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        email: email
+        role_name: role_name
+        invited_by: invited_by
+        status: pending
+        expires_at: 2000-01-23T04:56:07.000+00:00
+        accepted_at: 2000-01-23T04:56:07.000+00:00
+        created_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        id:
+          format: uuid
+          type: string
+        email:
+          type: string
+        role_name:
+          type: string
+        invited_by:
+          type: string
+        status:
+          enum:
+          - pending
+          - expired
+          - accepted
+          - revoked
+          type: string
+        expires_at:
+          format: date-time
+          type: string
+        accepted_at:
+          format: date-time
+          nullable: true
+          type: string
+        created_at:
+          format: date-time
+          type: string
+      required:
+      - created_at
+      - email
+      - expires_at
+      - id
+      - invited_by
+      - role_name
+      - status
+      type: object
+    InvitationEnvelope:
+      example:
+        data:
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          email: email
+          role_name: role_name
+          invited_by: invited_by
+          status: pending
+          expires_at: 2000-01-23T04:56:07.000+00:00
+          accepted_at: 2000-01-23T04:56:07.000+00:00
+          created_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        data:
+          $ref: "#/components/schemas/Invitation"
+      required:
+      - data
+      type: object
+    InvitationList:
+      example:
+        data:
+        - id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          email: email
+          role_name: role_name
+          invited_by: invited_by
+          status: pending
+          expires_at: 2000-01-23T04:56:07.000+00:00
+          accepted_at: 2000-01-23T04:56:07.000+00:00
+          created_at: 2000-01-23T04:56:07.000+00:00
+        - id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          email: email
+          role_name: role_name
+          invited_by: invited_by
+          status: pending
+          expires_at: 2000-01-23T04:56:07.000+00:00
+          accepted_at: 2000-01-23T04:56:07.000+00:00
+          created_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/Invitation"
+          type: array
+      required:
+      - data
+      type: object
+    CreateInvitationInput:
+      example:
+        email: email
+        role_name: role_name
+      properties:
+        email:
+          type: string
+        role_name:
+          description: Must be an existing role. Only an owner can invite someone
+            as owner.
+          type: string
+      required:
+      - email
+      type: object
+    CustomDomain:
+      example:
+        id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        domain: domain
+        organization_id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        verification_status: pending
+        txt_host: txt_host
+        txt_record: txt_record
+        cname_record: cname_record
+        verified_at: 2000-01-23T04:56:07.000+00:00
+        created_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        id:
+          format: uuid
+          type: string
+        domain:
+          type: string
+        organization_id:
+          format: uuid
+          type: string
+        verification_status:
+          enum:
+          - pending
+          - verified
+          - failed
+          type: string
+        txt_host:
+          type: string
+        txt_record:
+          type: string
+        cname_record:
+          type: string
+        verified_at:
+          format: date-time
+          type: string
+        created_at:
+          format: date-time
+          type: string
+      required:
+      - cname_record
+      - created_at
+      - domain
+      - id
+      - txt_record
+      - verification_status
+      type: object
+    CustomDomainEnvelope:
+      example:
+        data:
+          id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          domain: domain
+          organization_id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          verification_status: pending
+          txt_host: txt_host
+          txt_record: txt_record
+          cname_record: cname_record
+          verified_at: 2000-01-23T04:56:07.000+00:00
+          created_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        data:
+          $ref: "#/components/schemas/CustomDomain"
+      required:
+      - data
+      type: object
+    CustomDomainList:
+      example:
+        data:
+        - id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          domain: domain
+          organization_id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          verification_status: pending
+          txt_host: txt_host
+          txt_record: txt_record
+          cname_record: cname_record
+          verified_at: 2000-01-23T04:56:07.000+00:00
+          created_at: 2000-01-23T04:56:07.000+00:00
+        - id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          domain: domain
+          organization_id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+          verification_status: pending
+          txt_host: txt_host
+          txt_record: txt_record
+          cname_record: cname_record
+          verified_at: 2000-01-23T04:56:07.000+00:00
+          created_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/CustomDomain"
+          type: array
+      required:
+      - data
+      type: object
+    CreateCustomDomainInput:
+      example:
+        domain: domain
+        organization_id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+      properties:
+        domain:
+          type: string
+        organization_id:
+          format: uuid
+          type: string
+      required:
+      - domain
+      type: object
+  securitySchemes:
+    bearerAuth:
+      description: "A user access token, or a secret API key (`sk_live_…` / `sk_test_…\
+        `)."
+      scheme: bearer
+      type: http
+
